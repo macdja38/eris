@@ -27,6 +27,7 @@
   },
   "homepage": "https://abal.moe/Eris/",
   "dependencies": {
+    "request": "^2.81.0",
     "stream-resume": "0.0.5",
     "ws": "^2.2.0"
   },
