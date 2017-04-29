@@ -30,7 +30,7 @@
     "buffered2": "^1.0.0",
     "request": "^2.81.0",
     "stream-resume": "0.0.5",
-    "ws": "^2.2.0"
+    "ws": "^2.3.1"
   },
   "optionalDependencies": {
     "opusscript": "^0.0.3",
