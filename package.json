@@ -29,7 +29,7 @@
   "dependencies": {
     "buffered2": "^1.0.0",
     "request": "^2.81.0",
-    "stream-resume": "0.0.5",
+    "stream-resume": "github:macdja38/stream-resume#dev",
     "ws": "^2.3.1"
   },
   "optionalDependencies": {
