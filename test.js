@@ -3,7 +3,7 @@
  */
 
 let Eris = require("./index.js");
-let Client = new Eris("token");
+let client = new Eris("token");
 
 let slave = false;
 
@@ -14,7 +14,7 @@ let readyPromise = new Promise((resolve) => {
     resolveReadyPromise = resolve;
 });
 
-Client.on("ready", () => {
+client.on("ready", () => {
     console.log("ready");
     resolveReadyPromise();
 });
@@ -50,6 +50,18 @@ wss.on('connection', function connection(ws) {
         guild_id,
         channel_id,
     });
+    client.on("VOICE_SERVER_UPDATE", (data) => {
+        console.log("VOICE_SERVER_UPDATE_WITH_DATA", data);
+        sendWS({
+            identifier,
+            nonce,
+            action: "VOICE_SERVER_UPDATE",
+            session_id: data.session_id,
+            vsu: data,
+            guild_id,
+            channel_id,
+        });
+    });
     ws.on('message', function incoming(data) {
         data = JSON.parse(data);
         console.log("incommingData", data);
@@ -59,7 +71,7 @@ wss.on('connection', function connection(ws) {
             case "SEND_WS": {
                 let message = JSON.parse(data.message);
                 console.log(message);
-                Client.shards.get(Client.guildShardMap["97069403178278912"] || 0).sendWS(message.op, message.d);
+                client.shards.get(client.guildShardMap["97069403178278912"] || 0).sendWS(message.op, message.d);
             }
         }
     });
@@ -74,4 +86,4 @@ wss.on('connection', function connection(ws) {
     }, 3000);
 });
 
-Client.connect();
+client.connect();
