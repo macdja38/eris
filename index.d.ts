@@ -24,7 +24,8 @@ declare module 'eris' {
     thumbnail?: { url?: string, proxy_url?: string, height?: number, width?: number },
     video?: { url: string, height?: number, width?: number },
     provider?: { name: string, url?: string },
-    fields?: Array<{ name?: string, value?: string, inline?: boolean }>
+    fields?: Array<{ name?: string, value?: string, inline?: boolean }>,
+    author?: { name: string, url?: string, icon_url?: string, proxy_icon_url?: string }
   }
   type Embed = {
     type: string
@@ -197,14 +198,15 @@ declare module 'eris' {
     guildCreateTimeout?: number,
     largeThreshold?: number,
     lastShardID?: number,
-    maxShards?: number,
+    maxShards?: number | "auto",
     messageLimit?: number,
     opusOnly?: boolean,
     restMode?: boolean,
     seedVoiceConnections?: boolean,
     sequencerWaiter?: number,
     defaultImageFormat?: string,
-    defaultImageSize?: number
+    defaultImageSize?: number,
+    ws?: any
   }
   type CommandClientOptions = {
     defaultHelpCommand?: boolean,
@@ -213,9 +215,10 @@ declare module 'eris' {
     ignoreSelf?: boolean,
     name?: string,
     owner?: string,
-    prefix?: string,
+    prefix?: string | Array<string>,
     defaultCommandOptions?: CommandOptions
   }
+  type GenericCheckFunction<T> = (msg: Message) => T;
   type CommandOptions = {
     aliases?: Array<string>,
     caseInsensitive?: boolean,
@@ -227,9 +230,17 @@ declare module 'eris' {
     fullDescription?: string,
     usage?: string,
     requirements?: {
-      userIDs?: Array<string>,
-      permissions?: { [s: string]: boolean }
-    }
+      userIDs?: Array<string> | GenericCheckFunction<Array<string>>,
+      roleIDs?: Array<string> | GenericCheckFunction<Array<string>>,
+      roleNames?: Array<string> | GenericCheckFunction<Array<string>>,
+      permissions?: { [s: string]: boolean } | GenericCheckFunction<{ [s: string]: boolean }>
+    },
+    restartCooldown?: boolean,
+    cooldownReturns?: number,
+    cooldownMessage?: string | GenericCheckFunction<string>,
+    invalidUsageMessage?: string | GenericCheckFunction<string>,
+    permissionMessage?: string | GenericCheckFunction<string>,
+    errorMessage?: string | GenericCheckFunction<string>
   }
   type CommandGeneratorFunction = (msg: Message, args: Array<string>) => string | void;
   type CommandGenerator = CommandGeneratorFunction | string | Array<string> | Array<CommandGeneratorFunction>;
@@ -273,7 +284,9 @@ declare module 'eris' {
       ownerID?: string,
       topic?: string,
       bitrate?: number,
-      userLimit?: number
+      userLimit?: number,
+      nsfw?: boolean,
+      parentID?: string
     }, reason?: string): Promise<GroupChannel | GuildChannel>;
     editChannelPosition(channelID: string, position: number): Promise<void>;
     deleteChannel(channelID: string, reason?: string): Promise<void>;
@@ -311,7 +324,7 @@ declare module 'eris' {
     getMessage(channelID: string, messageID: string): Promise<Message>;
     getMessages(channelID: string, limit?: number, before?: string, after?: string, around?: string): Promise<Array<Message>>;
     getPins(channelID: string): Promise<Array<Message>>;
-    createMessage(channelID: string, content: MessageContent, file: MessageFile): Promise<Message>;
+    createMessage(channelID: string, content: MessageContent, file?: MessageFile): Promise<Message>;
     editMessage(channelID: string, messageID: string, content: MessageContent): Promise<Message>;
     pinMessage(channelID: string, messageID: string): Promise<void>;
     unpinMessage(channelID: string, messageID: string): Promise<void>;
@@ -716,6 +729,7 @@ declare module 'eris' {
     guild: Guild;
     messages: Collection<Message>;
     lastMessageID: string;
+    parentID?: string;
     lastPinTimestamp: number;
     permissionOverwrites: Collection<PermissionOverwrite>;
     type: number;
@@ -730,10 +744,11 @@ declare module 'eris' {
     permissionsOf(memberID: string): Permission;
     edit(
       options: {
-        name: string,
-        topic: string,
-        bitrate: number,
-        userLimit: number
+        name?: string,
+        topic?: string,
+        bitrate?: number,
+        userLimit?: number,
+        nsfw?: boolean
       }, reason?: string
     ): Promise<GuildChannel>;
     editPosition(position: number): Promise<void>;
@@ -746,6 +761,10 @@ declare module 'eris' {
     createWebhook(options: { name: string, avatar: string }, reason?: string): Promise<Webhook>;
     deleteMessages(messageIDs: Array<string>): Promise<void>;
     purge(limit?: number, filter?: (m: Message) => boolean, before?: string, after?: string): Promise<number>;
+  }
+
+  export class CategoryChannel extends GuildChannel {
+    channels?: Collection<GuildChannel>;
   }
 
   export class GuildIntegration extends Base {
@@ -821,8 +840,7 @@ declare module 'eris' {
   export class Message extends Base {
     id: string;
     createdAt: number;
-    channel: Channel;
-    guild?: Guild;
+    channel: PrivateChannel | GuildChannel | GroupChannel;
     timestamp: number;
     type: number;
     author: User;
