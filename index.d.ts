@@ -242,7 +242,7 @@ declare module "eris" {
     permissionMessage?: string | GenericCheckFunction<string>;
     errorMessage?: string | GenericCheckFunction<string>;
   }
-  type CommandGeneratorFunction = (msg: Message, args: string[]) => string | void;
+  type CommandGeneratorFunction = (msg: Message, args: string[]) => Promise<string> | Promise<void> | string | void;
   type CommandGenerator = CommandGeneratorFunction | string | string[] | CommandGeneratorFunction[];
 
   export class Client extends EventEmitter {
@@ -280,7 +280,7 @@ declare module "eris" {
     public editAFK(afk: boolean): void;
     public editStatus(status?: string, game?: GamePresence): void;
     public getChannel(channelID: string): Promise<Channel>;
-    public createChannel(guildID: string, name: string, type?: number, reason?: string): Promise<GuildChannel>;
+    public createChannel(guildID: string, name: string, type?: number, reason?: string, parentID?: string): Promise<GuildChannel>;
     public editChannel(channelID: string, options: {
       name?: string,
       icon?: string,
@@ -777,7 +777,7 @@ declare module "eris" {
     public constructor(data: BaseData, client: Client);
     public fetchAllMembers(): void;
     public dynamicIconURL(format: string, size: number): string;
-    public createChannel(name: string, type: string): Promise<GuildChannel>;
+    public createChannel(name: string, type: string, parentID?: string): Promise<GuildChannel>;
     public createEmoji(
       options: { name: string, image: string, roles?: string[] },
       reason?: string,
@@ -995,7 +995,8 @@ declare module "eris" {
     public attachments: Attachment[];
     public embeds: Embed[];
     public reactions: { [s: string]: any, count: number, me: boolean };
-    public command: Command;
+    public prefix?: string;
+    public command?: Command;
     public constructor(data: BaseData, client: Client);
     public edit(content: MessageContent): Promise<Message>;
     public pin(): Promise<void>;
@@ -1136,7 +1137,7 @@ declare module "eris" {
     public onMessageCreate(msg: Message): void;
     public registerGuildPrefix(guildID: string, prefix: string[] | string): void;
     public registerCommandAlias(alias: string, label: string): void;
-    public registerCommand(label: string, generator: CommandGenerator, options?: CommandOptions): void;
+    public registerCommand(label: string, generator: CommandGenerator, options?: CommandOptions): Command;
     public unregisterCommand(label: string): void;
   }
 }
