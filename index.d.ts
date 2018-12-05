@@ -3,6 +3,7 @@ declare module "eris" {
   import { EventEmitter } from "events";
   import { Readable as ReadableStream } from "stream";
 
+  export const VERSION: string;
   interface JSONCache { [s: string]: any; }
 
   interface SimpleJSON {
@@ -200,7 +201,6 @@ declare module "eris" {
   interface Constants {
     DefaultAvatarHashes: string[];
     ImageFormats: string[];
-    ImageSizes: number[];
     GatewayOPCodes: {[key: string]: number};
     GATEWAY_VERSION: number;
     Permissions: {[key: string]: number};
@@ -351,6 +351,11 @@ declare module "eris" {
   } & EmojiBase;
   type Emoji = {
     roles: string[],
+    id: string,
+    require_colons: boolean,
+    animated: boolean,
+    managed: boolean,
+    user: { name: string, discriminator: string, id: string, avatar: string }
   } & EmojiBase;
   interface IntegrationOptions { expireBehavior: string; expireGracePeriod: string; enableEmoticons: string; }
   interface GuildOptions {
@@ -413,7 +418,6 @@ declare module "eris" {
     opusOnly?: boolean;
     restMode?: boolean;
     seedVoiceConnections?: boolean;
-    sequencerWaiter?: number;
     defaultImageFormat?: string;
     defaultImageSize?: number;
     ws?: any;
@@ -429,6 +433,12 @@ declare module "eris" {
     prefix?: string | string[];
     defaultCommandOptions?: CommandOptions;
   }
+  interface Hooks {
+    preCommand?: (msg: Message, args: string[]) => void;
+    postCheck?: (msg: Message, args: string[], checksPassed: boolean) => void;
+    postExecution?: (msg: Message, args: string[], executionSuccess: boolean) => void;
+    postCommand?: (msg: Message, args: string[], sent?: Message) => void;
+  }
   type GenericCheckFunction<T> = (msg: Message) => T;
   interface CommandOptions {
     aliases?: string[];
@@ -440,11 +450,13 @@ declare module "eris" {
     description?: string;
     fullDescription?: string;
     usage?: string;
+    hooks?: Hooks;
     requirements?: {
       userIDs?: string[] | GenericCheckFunction<string[]>,
       roleIDs?: string[] | GenericCheckFunction<string[]>,
       roleNames?: string[] | GenericCheckFunction<string[]>,
       permissions?: { [s: string]: boolean } | GenericCheckFunction<{ [s: string]: boolean }>,
+      custom?: GenericCheckFunction<void>,
     };
     cooldown?: number;
     cooldownExclusions?: {
@@ -461,9 +473,11 @@ declare module "eris" {
     reactionButtons?: Array<{ emoji: string, type: string, response: CommandGenerator }>;
     reactionButtonTimeout?: number;
     defaultSubcommandOptions?: CommandOptions;
+    hidden?: boolean;
   }
-  type CommandGeneratorFunction = (msg: Message, args: string[]) => Promise<string> | Promise<void> | string | void;
-  type CommandGenerator = CommandGeneratorFunction | string | string[] | CommandGeneratorFunction[];
+  type CommandGeneratorFunction = (msg: Message, args: string[]) => Promise<MessageContent>
+    | Promise<void> | MessageContent | void;
+  type CommandGenerator = CommandGeneratorFunction | MessageContent | MessageContent[] | CommandGeneratorFunction[];
 
   export class ShardManager extends Collection<Shard> {
     public constructor(client: Client);
@@ -471,7 +485,7 @@ declare module "eris" {
     public spawn(id: number): void;
     public toJSON(): string;
   }
-                          
+
   export class Client extends EventEmitter implements SimpleJSON, Emittable {
     public token?: string;
     public gatewayURL?: string;
@@ -504,6 +518,7 @@ declare module "eris" {
       options?: { shared?: boolean, opusOnly?: boolean },
     ): Promise<VoiceConnection>;
     public leaveVoiceChannel(channelID: string): void;
+    public closeVoiceConnection(guildID: string): void;
     public editAFK(afk: boolean): void;
     public editStatus(status?: string, game?: GamePresence): void;
     public getChannel(channelID: string): AnyChannel;
@@ -521,6 +536,7 @@ declare module "eris" {
       topic?: string,
       bitrate?: number,
       userLimit?: number,
+      rateLimitPerUser?: number,
       nsfw?: boolean,
       parentID?: string,
     },                 reason?: string): Promise<GroupChannel | AnyGuildChannel>;
@@ -636,11 +652,13 @@ declare module "eris" {
     public deleteGuildIntegration(guildID: string, integrationID: string): Promise<void>;
     public syncGuildIntegration(guildID: string, integrationID: string): Promise<void>;
     public getGuildInvites(guildID: string): Promise<Invite[]>;
+    public getGuildVanity(guildID: string): Promise<{code: Invite}>;
     public banGuildMember(guildID: string, userID: string, deleteMessageDays?: number, reason?: string): Promise<void>;
     public unbanGuildMember(guildID: string, userID: string, reason?: string): Promise<void>;
     public createGuild(name: string, region: string, icon?: string): Promise<Guild>;
     public editGuild(guildID: string, options: GuildOptions, reason?: string): Promise<Guild>;
     public getGuildBans(guildID: string): Promise<Array<{ reason?: string, user: User }>>;
+    public getGuildBan(guildID: string, userID: string): Promise<{ reason?: string, user: User }>;
     public editGuildMember(guildID: string, memberID: string, options: MemberOptions, reason?: string): Promise<void>;
     public addGuildMemberRole(guildID: string, memberID: string, roleID: string, reason?: string): Promise<void>;
     public removeGuildMemberRole(guildID: string, memberID: string, roleID: string, reason?: string): Promise<void>;
@@ -1013,12 +1031,12 @@ declare module "eris" {
     public createEmoji(
       options: { name: string, image: string, roles?: string[] },
       reason?: string,
-    ): Promise<EmojiOptions>;
+    ): Promise<Emoji>;
     public editEmoji(
       emojiID: string,
       options: { name: string, roles?: string[] },
       reason?: string,
-    ): Promise<EmojiOptions>;
+    ): Promise<Emoji>;
     public deleteEmoji(emojiID: string, reason?: string): Promise<void>;
     public createRole(options: RoleOptions, reason?: string): Promise<Role>;
     public getPruneCount(days: number): Promise<number>;
@@ -1031,6 +1049,7 @@ declare module "eris" {
     public getRESTRoles(): Promise<Role[]>;
     public getEmbed(): Promise<GuildEmbed>;
     public getVoiceRegions(): Promise<VoiceRegion[]>;
+    public leaveVoiceChannel(): void;
     public editRole(roleID: string, options: RoleOptions): Promise<Role>;
     public deleteRole(roleID: string): Promise<void>;
     public getAuditLogs(limit?: number, before?: string, actionType?: number): Promise<GuildAuditLog>;
@@ -1039,6 +1058,7 @@ declare module "eris" {
     public syncIntegration(integrationID: string): Promise<void>;
     public deleteIntegration(integrationID: string): Promise<void>;
     public getInvites(): Promise<Invite[]>;
+    public getVanity(): Promise<{code: Invite}>;
     public editMember(memberID: string, options: MemberOptions, reason?: string): Promise<void>;
     public addMemberRole(memberID: string, roleID: string, reason?: string): Promise<void>;
     public removeMemberRole(memberID: string, roleID: string, reason?: string): Promise<void>;
@@ -1051,6 +1071,7 @@ declare module "eris" {
     public delete(): Promise<void>;
     public leave(): Promise<void>;
     public getBans(): Promise<User[]>;
+    public getBan(): Promise<{ reason?: string, user: User }>;
     public editNickname(nick: string): Promise<void>;
     public getWebhooks(): Promise<Webhook[]>;
   }
@@ -1091,6 +1112,7 @@ declare module "eris" {
         topic?: string,
         bitrate?: number,
         userLimit?: number,
+        rateLimitPerUser?: number,
         nsfw?: boolean,
       },
       reason?: string,
@@ -1114,6 +1136,7 @@ declare module "eris" {
   export class TextChannel extends GuildChannel implements Textable, Invitable {
     public topic?: string;
     public lastMessageID: string;
+    public rateLimitPerUser: number;
     public messages: Collection<Message>;
     public constructor(data: BaseData, guild: Guild, messageLimit: number);
     public getInvites(): Promise<Invite[]>;
@@ -1141,6 +1164,9 @@ declare module "eris" {
     public addMessageReaction(messageID: string, reaction: string, userID?: string): Promise<void>;
     public removeMessageReaction(messageID: string, reaction: string, userID?: string): Promise<void>;
     public removeMessageReactions(messageID: string): Promise<void>;
+    public purge(
+      limit: number, filter?: (message: Message) => boolean, before?: string, after?: string
+    ): Promise<number>;
     public deleteMessage(messageID: string, reason?: string): Promise<void>;
     public unsendMessage(messageID: string): Promise<void>;
   }
@@ -1361,7 +1387,7 @@ declare module "eris" {
     public avatarURL: string;
     public staticAvatarURL: string;
     public constructor(data: BaseData, client: Client);
-    public dynamicIconURL(format?: string, size?: number): string;
+    public dynamicAvatarURL(format?: string, size?: number): string;
     public getDMChannel(): Promise<PrivateChannel>;
     public addRelationship(block?: boolean): Promise<void>;
     public removeRelationship(): Promise<void>;
@@ -1506,15 +1532,54 @@ declare module "eris" {
     ): this;
     public on(event: "warn" | "debug", listener: (message: string, id: number) => void): this;
     public on(event: "disconnect", listener: (err: Error) => void): this;
+    // FIXME
+    // tslint:disable-next-line
     public on(event: "resume", listener: () => void): this;
     public toJSON(simple?: boolean): JSONCache;
     // tslint:disable-next-line
     public sendWS(op: number, _data: object): void;
   }
 
-  // TODO: Do we need all properties of Command, as it has a lot of stuff
   export class Command {
     public subcommands: { [s: string]: Command };
+    public subcommandAliases: { [alias: string]: Command };
+    public label: string;
+    public parentCommand?: Command;
+    public description: string;
+    public fullDescription: string;
+    public usage: string;
+    public aliases: string[];
+    public caseInsensitive: boolean;
+    public hooks: Hooks;
+    public requirements: {
+      userIDs?: string[] | GenericCheckFunction<string[]>,
+      roleIDs?: string[] | GenericCheckFunction<string[]>,
+      roleNames?: string[] | GenericCheckFunction<string[]>,
+      permissions?: { [s: string]: boolean } | GenericCheckFunction<{ [s: string]: boolean }>,
+      custom?: GenericCheckFunction<void>,
+    };
+    public deleteCommand: boolean;
+    public argsRequired: boolean;
+    public guildOnly: boolean;
+    public dmOnly: boolean;
+    public cooldown: number;
+    public cooldownExclusions: {
+      userIDs?: string[],
+      guildIDs?: string[],
+      channelIDs?: string[],
+    };
+    public restartCooldown: boolean;
+    public cooldownReturns: number;
+    public cooldownMessage: string | boolean | GenericCheckFunction<string>;
+    public invalidUsageMessage: string | boolean | GenericCheckFunction<string>;
+    public permissionMessage: string | boolean | GenericCheckFunction<string>;
+    public errorMessage: string | GenericCheckFunction<string>;
+    public reactionButtons: null | Array<{
+      emoji: string, type: string, response: CommandGenerator, execute?: () => string, responses?: Array<() => string>,
+    }>;
+    public reactionButtonTimeout: number;
+    public defaultSubcommandOptions: CommandOptions;
+    public hidden: boolean;
     public constructor(label: string, generate: CommandGenerator, options?: CommandOptions);
     public registerSubcommandAlias(alias: string, label: string): void;
     public registerSubcommand(label: string, generator: CommandGenerator, options?: CommandOptions): void;
