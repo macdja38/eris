@@ -50,7 +50,7 @@ declare namespace Eris {
   type PossiblyUncachedMessage = Message | { channel: TextableChannel | { id: string; guild: { id: string } }; guildID: string; id: string };
 
   // Permission
-  type PermissionType = "role" | "member";
+  type PermissionType = 0 | 1;
 
   // Presence/Relationship
   type ActivityType = BotActivityType | 4;
@@ -594,6 +594,27 @@ declare namespace Eris {
     channel_id?: string;
     enabled: boolean;
   }
+  interface WidgetChannel {
+    id: string;
+    name: string;
+    position: number;
+  }
+  interface WidgetMember {
+    id: string;
+    username: string;
+    discriminator: string;
+    avatar: null;
+    status: string;
+    avatar_url: string;
+  }
+  interface WidgetData {
+    id: string;
+    name: string;
+    instant_invite: string;
+    channels: WidgetChannel[];
+    members: WidgetMember[];
+    presence_count: number;
+  }
   interface GuildOptions {
     afkChannelID?: string;
     afkTimeout?: number;
@@ -768,7 +789,6 @@ declare namespace Eris {
   interface Presence {
     activities?: Activity[];
     clientStatus?: ClientStatus;
-    game: Activity | null;
     status?: Status;
   }
 
@@ -793,7 +813,7 @@ declare namespace Eris {
     hoist?: boolean;
     mentionable?: boolean;
     name?: string;
-    permissions?: number;
+    permissions?: number | Permission;
   }
 
   // Voice
@@ -940,7 +960,7 @@ declare namespace Eris {
       GUILD_NEWS: 5;
       GUILD_STORE: 6;
     };
-    GATEWAY_VERSION: 6;
+    GATEWAY_VERSION: 8;
     GatewayOPCodes: {
       EVENT: 0;
       HEARTBEAT: 1;
@@ -1050,7 +1070,7 @@ declare namespace Eris {
       allText: 805829714;
       allVoice: 871367441;
     };
-    REST_VERSION: 7;
+    REST_VERSION: 8;
     SystemJoinMessages: [
       "%user% joined the party.",
       "%user% is here.",
@@ -1409,7 +1429,7 @@ declare namespace Eris {
       overwriteID: string,
       allow: number,
       deny: number,
-      type: string,
+      type: PermissionType,
       reason?: string
     ): Promise<void>;
     editChannelPosition(channelID: string, position: number): Promise<void>;
@@ -1464,8 +1484,6 @@ declare namespace Eris {
     getGuildBan(guildID: string, userID: string): Promise<{ reason?: string; user: User }>;
     getGuildBans(guildID: string): Promise<{ reason?: string; user: User }[]>;
     getGuildDiscovery(guildID: string): Promise<DiscoveryMetadata>;
-    /** @deprecated */
-    getGuildEmbed(guildID: string): Promise<Widget>;
     getGuildIntegrations(guildID: string): Promise<GuildIntegration[]>;
     getGuildInvites(guildID: string): Promise<Invite[]>;
     getGuildPreview(guildID: string): Promise<GuildPreview>;
@@ -1473,7 +1491,8 @@ declare namespace Eris {
     getGuildTemplates(guildID: string): Promise<GuildTemplate[]>;
     getGuildVanity(guildID: string): Promise<{ code?: string; uses?: number }>;
     getGuildWebhooks(guildID: string): Promise<Webhook[]>;
-    getGuildWidget(guildID: string): Promise<Widget>;
+    getGuildWidget(guildID: string): Promise<WidgetData>;
+    getGuildWidgetSettings(guildID: string): Promise<Widget>;
     getInvite(inviteID: string, withCounts?: false): Promise<Invite<"withoutCount">>;
     getInvite(inviteID: string, withCounts: true): Promise<Invite<"withCount">>;
     getMessage(channelID: string, messageID: string): Promise<Message>;
@@ -1830,8 +1849,6 @@ declare namespace Eris {
     getBan(userID: string): Promise<{ reason?: string; user: User }>;
     getBans(): Promise<{ reason?: string; user: User }[]>;
     getDiscovery(): Promise<DiscoveryMetadata>;
-    /** @deprecated */
-    getEmbed(): Promise<Widget>;
     getIntegrations(): Promise<GuildIntegration>;
     getInvites(): Promise<Invite[]>;
     getPruneCount(options?: GetPruneOptions): Promise<number>;
@@ -1845,7 +1862,8 @@ declare namespace Eris {
     getVanity(): Promise<{ code?: string; uses?: number }>;
     getVoiceRegions(): Promise<VoiceRegion[]>;
     getWebhooks(): Promise<Webhook[]>;
-    getWidget(): Promise<Widget>;
+    getWidget(): Promise<WidgetData>;
+    getWidgetSettings(): Promise<Widget>;
     kickMember(userID: string, reason?: string): Promise<void>;
     leave(): Promise<void>;
     leaveVoiceChannel(): void;
